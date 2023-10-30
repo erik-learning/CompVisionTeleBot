@@ -1,70 +1,67 @@
-from telegram.ext import *
+from telegram.ext import CommandHandler, MessageHandler, Filters, Updater
 from io import BytesIO
 import cv2
 import numpy as np
 import tensorflow as tf
-TOKEN = '5681427786:AAFnS-Fzgo5cuw5f5qUpEv2nK9Uf84mrTVw'
 
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data() 
-x_train, x_test = x_train/255, x_test/255
+API_KEY = '*************************************'
 
-class_names = ['Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
+(train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.cifar10.load_data()
+train_images, test_images = train_images/255.0, test_images/255.0
 
-model = tf.keras.models.Sequential()
-model.add(tf.keras.layers.Conv2D(32, (3,3), activation = 'relu', input_shape = (32,32,3)))
-model.add(tf.keras.layers.MaxPooling2D((2,2)))
-model.add(tf.keras.layers.Conv2D(64, (3,3), activation = 'relu'))
-model.add(tf.keras.layers.MaxPooling2D((2,2)))
-model.add(tf.keras.layers.Conv2D(64, (3,3), activation = 'relu'))
-model.add(tf.keras.layers.Flatten())
-model.add(tf.keras.layers.Dense(64, activation='relu'))
-model.add(tf.keras.layers.Dense(10, activation = 'softmax'))
+label_names = ['Aircraft', 'Automobile', 'Avian', 'Feline', 'Elk', 'Canine', 'Toad', 'Equine', 'Boat', 'Lorry']
 
+neural_net = tf.keras.models.Sequential([
+    tf.keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=(32,32,3)),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+    tf.keras.layers.MaxPooling2D(2,2),
+    tf.keras.layers.Conv2D(128, (3,3), activation='relu'),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
 
+def greet_user(update, context):
+    update.message.reply_text("Hello there!")
 
-def start(update, context):
-    update.message.reply_text("Welcome!")
-
-def help(update, context):
+def provide_help(update, context):
     update.message.reply_text("""
-    /start - Starts
-    /help - Show this message
-    /train - trains NN
+    /begin - Begin interaction
+    /assist - This guidance
+    /initiate_training - Start model training
     """)
-def train(update, context):
-    update.message.reply_text("Model is being trained...")
-    model.compile(optimizer = 'adam', loss = 'sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(x_train, y_train, epochs= 10, validation_data = (x_test, y_test))
-    model.save('AI_bot_tele.model')
-    update.message.reply_text("Finished. You can now send me a picture")
 
-def handle_message(update, context):
-    update.message.reply_text("Please train the model and send a picture!")
+def initiate_training(update, context):
+    update.message.reply_text("Commencing model training...")
+    neural_net.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    neural_net.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels))
+    neural_net.save('BotModel_Telegram.model')
+    update.message.reply_text("Training complete. Please upload a picture.")
 
-def handle_photo(update, context):
-    file = context.bot.get_file(update.message.photo[-1].file_id)
-    f = BytesIO(file.download_as_bytearray())
-    file_bytes = np.asarray(bytearray(f.read()), dtype = np.uint8)
+def process_text(update, context):
+    update.message.reply_text("For better interaction, first train the model and then upload an image.")
+
+def analyze_image(update, context):
+    img_file = context.bot.get_file(update.message.photo[-1].file_id)
+    img_stream = BytesIO(img_file.download_as_bytearray())
+    img_bytes = np.asarray(bytearray(img_stream.read()), dtype=np.uint8)
     
-    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    img = cv2.resize(img, (32,32), interpolation=cv2.INTER_AREA)
+    analyzed_img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+    analyzed_img = cv2.cvtColor(analyzed_img, cv2.COLOR_RGB2BGR)
+    analyzed_img = cv2.resize(analyzed_img, (32,32), interpolation=cv2.INTER_AREA)
 
-    prediction = model.predict(np.array([img / 255]))
-    update.message.reply_text(f"I see a {class_names[np.argmax(prediction)]}")
+    predicted_value = neural_net.predict(np.array([analyzed_img / 255.0]))
+    update.message.reply_text(f"I believe this is a {label_names[np.argmax(predicted_value)]}.")
 
+telegram_bot = Updater(API_KEY, use_context=True)
+dispatcher = telegram_bot.dispatcher
 
-updater = Updater(TOKEN, use_context = True)
-dp = updater.dispatcher
+dispatcher.add_handler(CommandHandler("begin", greet_user))
+dispatcher.add_handler(CommandHandler("assist", provide_help))
+dispatcher.add_handler(CommandHandler("initiate_training", initiate_training))
+dispatcher.add_handler(MessageHandler(Filters.text, process_text))
+dispatcher.add_handler(MessageHandler(Filters.photo, analyze_image))
 
-dp.add_handler(CommandHandler("start", start))
-dp.add_handler(CommandHandler("help", help))
-dp.add_handler(CommandHandler("train", train))
-dp.add_handler(MessageHandler(Filters.text, handle_message))
-dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-
-updater.start_polling()
-updater.idle()
-
-
-
+telegram_bot.start_polling()
+telegram_bot.idle()
