@@ -1,10 +1,24 @@
-# bot
-What it does?
-This bot identifies objects that you send him in telegram chat.
+#What does it do?
 
-How it works?
-It trains itself on the dataset from keras and then using this model labels objects.
+This bot identifies objects that you send it in a Telegram chat.
 
-How to use the bot?
-Just write "/start" to @First_real_stepbot to start. Then write command "/train" and wait until model finished training itself. After that you can send him pictures and it will indetify it for you!
-Here are all the classes it can identify - 'Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck'
+#How does it work?
+
+The bot is trained on a dataset from Keras, and then uses this model to label objects.
+
+#How to use the bot:
+
+Write /start to @First_real_stepbot to start.
+Write the command /train and wait until the model has finished training itself.
+After that, you can send it pictures and it will identify them for you.
+Here are all the classes it can identify:
+Airplane
+Car
+Bird
+Cat
+Deer
+Dog
+Frog
+Horse
+Ship
+Truck
